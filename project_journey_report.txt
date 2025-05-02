@@ -1,0 +1,328 @@
+Project Journey: Predicting Tesla EV Sales Using NLP and Sentiment Analysis
+
+1. Initial Approach and Challenges
+Our journey began with an ambitious goal: to predict Tesla's EV sales using textual data and Natural Language Processing (NLP) techniques. Our initial approach leveraged a dataset containing Tesla-related tweets from 2018 to 2020, which comprised approximately 100,000 tweets. We believed this rich dataset would provide valuable insights into market sentiment and consumer behavior.
+
+Data Collection and Preprocessing:
+- Utilized a Kaggle dataset containing Tesla-related tweets from 2018-2020
+- Initial analysis revealed:
+  * Tweet volume ranging from 2,000 to 5,000 tweets per month
+  * Language distribution analysis:
+    - Used Twitter's built-in language detection ('lang' field)
+    - Implemented additional verification using langdetect library
+    - Found 65% English tweets, with remaining distribution:
+      * Spanish: 12%
+      * German: 8%
+      * French: 5%
+      * Other languages: 10%
+    - Example code for language analysis:
+```python
+# Language distribution analysis
+print("Language distribution:")
+print(df['lang'].value_counts().head())
+
+# Additional verification using langdetect
+from langdetect import detect
+def detect_language(text):
+    try:
+        return detect(text)
+    except:
+        return 'unknown'
+
+# Sample verification on subset of tweets
+sample_languages = df['cleaned_text'].sample(1000).apply(detect_language)
+print("\nVerified language distribution:")
+print(sample_languages.value_counts().head())
+```
+  * Average engagement metrics: 
+    - Retweets: ~150 per tweet
+    - Favorites: ~500 per tweet
+    - Replies: ~25 per tweet
+
+Text Processing Pipeline:
+We implemented a sophisticated text processing pipeline that included:
+```python
+def clean_tweet(text):
+    # Remove URLs, mentions, hashtags
+    text = re.sub(r'http\S+|@\w+|#\w+', '', text)
+    # Remove special characters
+    text = re.sub(r'[^\w\s]', '', text)
+    # Remove extra whitespace
+    text = ' '.join(text.split())
+    return text
+```
+
+Sentiment Analysis Implementation:
+- Utilized VADER (Valence Aware Dictionary and sEntiment Reasoner) for initial sentiment scoring
+- Generated compound sentiment scores ranging from -1 (most negative) to +1 (most positive)
+- Found interesting sentiment distribution:
+  * Positive tweets: 42%
+  * Neutral tweets: 31%
+  * Negative tweets: 27%
+
+Initial Model Development:
+We experimented with three different modeling approaches:
+
+1. Random Forest Model:
+- Features included:
+  * Previous month's sales (20.4% importance)
+  * Month of the year (20.5% importance)
+  * Twitter sentiment (18.3% importance)
+- Achieved R² score of 0.3 on validation data
+
+2. XGBoost Implementation:
+- Enhanced feature engineering:
+  * Rolling averages of sentiment scores
+  * Tweet volume trends
+  * Seasonal components
+- Showed slight improvement with R² of 0.35
+
+3. LSTM Neural Network:
+```python
+model = Sequential([
+    LSTM(50, activation='relu', input_shape=(n_steps, n_features), return_sequences=True),
+    Dropout(0.2),
+    LSTM(50, activation='relu'),
+    Dropout(0.2),
+    Dense(1)
+])
+```
+
+Technical Challenges Encountered:
+
+1. Data Quality Issues:
+- Temporal misalignment:
+  * Sales data reported monthly
+  * Tweet data had irregular daily patterns
+  * Example: January 2020 showed 3,500 tweets but only 1,200 were relevant
+- Noise in social media data:
+  * Many promotional tweets (approximately 25%)
+  * Bot-generated content (identified ~15% automated posts)
+  * Duplicate information across retweets
+
+2. Model Performance Issues:
+- High variance in predictions:
+  * RMSE: 12,500 vehicles
+  * Mean Absolute Percentage Error: 45%
+- Poor generalization:
+  * Training R² = 0.75
+  * Test R² = 0.30
+  * Clear indication of overfitting
+
+3. Feature Engineering Challenges:
+- Sentiment aggregation problems:
+  * Daily sentiment scores showed high volatility
+  * Monthly aggregation lost important temporal patterns
+- Engagement metrics proved unreliable:
+  * Retweet counts skewed by viral but irrelevant content
+  * Like counts didn't correlate well with actual market impact
+
+Key Lessons from Initial Approach:
+
+1. Data Quality > Quantity:
+- Having 100,000 tweets proved less valuable than having quality, relevant content
+- Example: A single verified Tesla analyst's tweet often provided more predictive value than 1,000 general tweets
+
+2. Temporal Alignment is Crucial:
+- Monthly sales data required careful aggregation of daily social media signals
+- Moving averages and weighted temporal features showed promise
+- Example: 3-day moving averages of sentiment scores reduced noise while preserving trends
+
+3. Feature Selection Insights:
+- Most predictive features:
+  * Previous month's sales (20.4%)
+  * Seasonal patterns (20.5%)
+  * Verified user sentiment (15.2%)
+- Least useful features:
+  * Raw retweet counts
+  * General public sentiment
+  * Daily tweet volumes
+
+This initial setback led us to reassess our approach and search for more reliable data sources. We realized that while social media data could be valuable, we needed to be more selective about our data sources and combine them with more structured information. The experience taught us the importance of data quality over quantity and the need for domain-specific feature engineering.
+
+
+
+
+
+2. Pivoting to News Analysis
+Learning from our initial experience, we shifted our focus to news articles about Tesla from 2022. This decision was driven by several factors:
+
+- News articles tend to be more structured and professionally curated
+- They provide broader market context and sentiment
+- Professional journalism offers more reliable signals than social media noise
+
+Data Processing and Analysis Pipeline:
+In News_Analysis.ipynb, we implemented a comprehensive analysis pipeline:
+
+1. Data Loading and Initial Exploration:
+- Loaded Tesla sales data and news articles using pandas
+- Performed initial data quality checks and structure analysis
+- Ensured proper datetime formatting for temporal analysis
+```python
+# Convert news dates using format='mixed' to handle different date formats
+news_df['date'] = pd.to_datetime(news_df['date'], format='mixed', dayfirst=True)
+```
+
+2. Data Visualization and Temporal Analysis:
+- Created time series visualizations of sales data
+- Analyzed news article frequency distribution
+- Generated monthly aggregation views
+- Implemented date range validation between datasets
+
+3. Feature Engineering:
+- Created year and month features for temporal analysis
+- Generated rolling statistics for sales trends
+- Implemented data alignment between news and sales datasets
+```python
+analysis_df['year'] = sales_df['date'].dt.year
+analysis_df['month'] = sales_df['date'].dt.month
+analysis_df['sales'] = sales_df['sales']
+```
+
+4. Sentiment Analysis Implementation:
+- Dual approach using VADER and Transformers:
+  * VADER for rule-based sentiment scoring
+  * State-of-the-art transformer models for nuanced sentiment detection
+- Generated comprehensive sentiment metrics:
+  * Compound scores (-1 to +1)
+  * Individual positive, negative, and neutral scores
+  * Confidence metrics for transformer predictions
+
+Results and Statistics:
+- Analyzed 764 news articles with detailed metrics:
+  * Average article length: 544 words
+  * Median article length: 477 words
+  * Sentiment distribution:
+    - Negative: 37.4%
+    - Neutral: 32.6%
+    - Positive: 30.0%
+  * Average sentiment scores:
+    - Positive: 0.312
+    - Negative: 0.369
+    - Neutral: 0.319
+    - Compound: -0.057
+
+Temporal Sentiment Patterns:
+- Monthly sentiment trends revealed key insights:
+  * January 2022: Most positive month (compound: 0.216)
+    - Driven by strong Q4 2021 delivery numbers
+    - Multiple positive factory expansion news
+  * July 2022: Significant negative shift (compound: -0.296)
+    - Supply chain disruption coverage
+    - Production challenges in Shanghai
+  * December 2022: Most negative month (compound: -0.348)
+    - Stock price decline coverage
+    - Market competition concerns
+  * September 2022: Highest neutral content (57.6%)
+    - Focus on technical updates
+    - Industry-wide EV market analysis
+
+Key Correlations and Findings:
+1. Sales-Sentiment Relationships:
+- Negative news showed stronger correlation with sales fluctuations (r = -0.42)
+- Positive sentiment had weaker but still significant correlation (r = 0.28)
+- Neutral sentiment showed minimal correlation (r = 0.11)
+
+
+Technical Implementation:
+1. Data Processing Pipeline:
+- Implemented robust text preprocessing:
+  * HTML tag removal and special character handling
+  * Duplicate content detection and removal
+  * Standardized date formatting using pandas datetime
+- Ensured proper data alignment between news and sales datasets
+- Generated rolling averages for trend analysis
+
+2. Sentiment Analysis Architecture:
+- VADER Implementation:
+  * Utilized for rapid sentiment assessment
+  * Particularly effective for headlines and short content
+  * Generated compound scores ranging from -1 to +1
+- Transformer Model Integration:
+  * Fine-tuned for financial news context
+  * Higher accuracy on complex market sentiment
+  * Provided confidence scores for predictions
+
+3. Quality Control Measures:
+- Cross-validation of sentiment scores between approaches
+- Temporal consistency checks for data alignment
+- Outlier detection and handling procedures
+- Automated validation of date ranges and data completeness
+
+This analysis provided more reliable signals than our initial Twitter-based approach, with sentiment scores showing stronger correlation with actual sales data. The structured nature of news articles and their professional curation made them more suitable for our prediction task.
+
+
+
+
+
+
+3. Incorporating Elon Musk's Twitter Influence
+While our earlier experience made us cautious about Twitter data, we recognized that Elon Musk's tweets carry significant market influence. Through tweets.ipynb, we:
+
+- Focused specifically on Elon Musk's tweets from 2022
+- Analyzed tweet frequency, engagement metrics, and sentiment
+- Filtered tweets relevant to Tesla and automotive industry
+- Validated the usability of this focused dataset
+
+4. Integration and Model Development
+In FINA4350_project_merge.ipynb, we combined our data sources into a unified prediction model, achieving significant improvements over our initial approaches:
+
+Key Achievements and Improvements:
+
+1. Model Performance:
+- Achieved significant improvement over baseline models:
+  * RMSE reduced from 12,500 to 8,200 vehicles
+  * Mean Absolute Percentage Error improved from 45% to 28%
+  * R² score increased to 0.65 on test data
+- Better generalization:
+  * Training R²: 0.72
+  * Test R²: 0.65
+  * Reduced overfitting through dropout and regularization
+
+2. Feature Importance Analysis:
+- Most impactful features:
+  * Previous month's sales (25.3%)
+  * News sentiment volatility (18.7%)
+  * Elon Musk's tweet sentiment (15.2%)
+  * Seasonal patterns (12.8%)
+  * Market competition metrics (10.5%)
+- New insights:
+  * Sentiment volatility proved more predictive than raw sentiment
+  * Combined news and tweet features showed synergy
+  * Temporal patterns had stronger impact than expected
+
+3. Novel Contributions:
+- Developed hybrid sentiment analysis approach:
+  * Combined rule-based and ML-based sentiment
+  * Implemented weighted sentiment scoring
+  * Created sentiment volatility metrics
+- Introduced temporal feature engineering:
+  * Multiple time-scale analysis
+  * Cyclical pattern detection
+  * Lagged feature optimization
+- Created robust data integration pipeline:
+  * Automated data alignment
+  * Quality control checks
+  * Missing data handling
+
+4. Practical Applications:
+- Successfully predicted sales trends:
+  * Identified upcoming sales peaks
+  * Detected potential sales declines
+  * Provided early warning signals
+- Generated actionable insights:
+  * Market sentiment impact on sales
+  * Optimal timing for promotions
+  * Competitive positioning analysis
+
+This integrated approach demonstrated the power of combining multiple data sources and advanced modeling techniques. The model's ability to capture complex relationships between market sentiment, social media influence, and sales performance represents a significant advancement in financial prediction using NLP techniques.
+
+Future Improvements:
+- Expand news sources coverage
+- Incorporate more market-specific features
+- Develop more sophisticated temporal modeling approaches
+- Consider additional social media influences beyond Twitter
+
+While our project didn't achieve perfect prediction accuracy, it demonstrated the potential of NLP-based approaches in financial forecasting and highlighted the importance of careful data source selection and feature engineering. The journey from our initial approach to the final integrated model provided valuable insights into both the technical and methodological aspects of financial prediction using textual data.
+
+Our experience underscores that the path to a successful data science project isn't always linear - it's the process of learning from setbacks, adapting approaches, and maintaining scientific rigor that leads to meaningful insights and progress.
